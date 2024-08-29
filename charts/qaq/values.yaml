@@ -192,7 +192,7 @@ uniauth:
   labels: {}
   annotations: {}
 
-uniauth-web:
+uniauthweb:
   role: uniauthweb
   image:
     repository: docker.io/kubernetesui/dashboard-auth

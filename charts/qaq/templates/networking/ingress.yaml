@@ -42,21 +42,21 @@ spec:
             pathType: {{ $.Values.app.ingress.pathType }}
             backend:
               service:
-                name: {{ template "qaq.fullname" . }}-{{ .Values.uniauthweb.role }}
+                name: {{ template "qaq.fullname" $ }}-{{ $.Values.uniauthweb.role }}
                 port:
                   number: 80
           - path: /api/
             pathType: {{ $.Values.app.ingress.pathType }}
             backend:
               service:
-                name: {{ template "qaq.fullname" . }}-{{ .Values.gateway.role }}
+                name: {{ template "qaq.fullname" $ }}-{{ $.Values.gateway.role }}
                 port:
                   number: 80
           - path: /web/
             pathType: {{ $.Values.app.ingress.pathType }}
             backend:
               service:
-                name: {{ template "qaq.fullname" . }}-{{ .Values.uniauth.role }}
+                name: {{ template "qaq.fullname" $ }}-{{ $.Values.uniauth.role }}
                 port:
                   number: 80
         {{- end }}
