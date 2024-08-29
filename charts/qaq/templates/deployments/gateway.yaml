@@ -4,65 +4,121 @@ metadata:
   name: {{ include "qaq.fullname" . }}-{{ .Values.gateway.role }}
   labels:
     {{- include "qaq.labels" . | nindent 4 }}
+    {{- with .Values.gateway.labels }}
+    {{ toYaml . | nindent 4 }}
+    {{- end }}
+    app.kubernetes.io/name: {{ template "qaq.name" . }}-{{ .Values.gateway.role }}
+    app.kubernetes.io/version: {{ .Values.gateway.image.tag }}
+    app.kubernetes.io/component: {{ .Values.gateway.role }}
+  annotations:
+    {{- with .Values.gateway.annotations }}
+    {{ toYaml . | nindent 8 }}
+    {{- end }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: {{ .Values.gateway.scaling.replicas }}
+  revisionHistoryLimit: {{ .Values.gateway.scaling.revisionHistoryLimit }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   selector:
     matchLabels:
-      {{- include "qaq.selectorLabels" . | nindent 6 }}
+      {{- include "qaq.matchLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       labels:
         {{- include "qaq.labels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
+        {{- with .Values.gateway.labels }}
+        {{ toYaml . | nindent 8 }}
+        {{- end }}
+        app.kubernetes.io/name: {{ template "qaq.name" . }}-{{ .Values.gateway.role }}
+        app.kubernetes.io/version: {{ .Values.gateway.image.tag }}
+        app.kubernetes.io/component: {{ .Values.gateway.role }}
+      annotations:
+        {{- with .Values.gateway.annotations }}
+        {{ toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "qaq.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ template "qaq.name" . }}-{{ .Values.gateway.role }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
-          livenessProbe:
-            {{- toYaml .Values.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml .Values.readinessProbe | nindent 12 }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          env:
+            - name: RSA_PUBLICKEY
+              valueFrom:
+                secretKeyRef:
+                  name:  {{ include "qaq.fullname" . }}
+                  key: RSA_PUBLICKEY
+          {{- with .Values.gateway.containers.env }}
+          {{ toYaml . | nindent 12 }}
           {{- end }}
-      {{- with .Values.volumes }}
+
+          {{- with .Values.gateway.containers.ports }}
+          ports:
+          {{ toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /application.yaml
+              name: application
+              subPath: application.yaml
+          {{- with .Values.gateway.containers.volumeMounts }}
+          {{ toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.app.security.containerSecurityContext }}
+          securityContext:
+          {{ toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.gateway.containers.resources }}
+          resources:
+          {{ toYaml . | nindent 12 }}
+          {{- end }}
+
+      {{- with .Values.app.image.pullSecrets }}
+      imagePullSecrets:
+      {{- range . }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
+
+      automountServiceAccountToken: {{ .Values.gateway.automountServiceAccountToken }}
+
+      {{- with .Values.app.security.securityContext }}
+      securityContext:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
+
       volumes:
-        {{- toYaml . | nindent 8 }}
+        - name: application
+          configMap:
+            name:  {{ include "qaq.fullname" . }}-{{ .Values.gateway.role }}
+      {{- with .Values.gateway.volumes }}
+      {{ toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.nodeSelector }}
+
+      {{- with .Values.app.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+
+      {{- if or .Values.gateway.nodeSelector .Values.app.scheduling.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
+      {{- with .Values.gateway.nodeSelector }}
+      {{ toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
+      {{- with .Values.app.scheduling.nodeSelector }}
+      {{ toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- end }}
+
+      {{- with .Values.app.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
+      {{ toYaml . | nindent 8 }}
       {{- end }}
+
+      {{- with .Values.app.affinity }}
+      affinity:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
+
+      serviceAccountName: {{ template "kubernetes-dashboard.fullname" . }}-{{ .Values.api.role }}

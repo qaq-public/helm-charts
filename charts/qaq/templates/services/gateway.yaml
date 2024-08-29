@@ -1,15 +1,18 @@
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
-  name: {{ include "qaq.fullname" . }}-{{ .Values.gateway.role }}
   labels:
     {{- include "qaq.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ template "qaq.name" . }}-{{ .Values.gateway.role }}
+    app.kubernetes.io/version: {{ .Values.gateway.image.tag }}
+    app.kubernetes.io/component: {{ .Values.gateway.role }}
+  name: {{ template "qaq.fullname" . }}-{{ .Values.gateway.role }}
 spec:
-  type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
+    - name: {{ .Values.gateway.role }}
+    {{- with (index .Values.gateway.containers.ports 0) }}
+      port: {{ .containerPort }}
+    {{- end }}
   selector:
-    {{- include "qaq.selectorLabels" . | nindent 4 }}
+    {{- include "qaq.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ template "qaq.name" . }}-{{ .Values.gateway.role }}
